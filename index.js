@@ -1,95 +1,80 @@
-const express = require("express");
-const cors = require("cors");
-const { createClient } = require("@supabase/supabase-js");
-require("dotenv").config();
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import { createClient } from "@supabase/supabase-js";
+
+dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
-// Supabase Client Setup
+// ✅ Load environment variables safely
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error("❌ ERROR: Supabase URL or Key is missing! Check environment variables.");
+  process.exit(1); // Stop the server if env variables are missing
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Default Route
+// ✅ Test API
 app.get("/", (req, res) => {
-  res.send("✅ Service is running!");
+  res.send("✅ Service is Running!");
 });
 
-// Fetch All Stocks
+// ✅ Get all stocks
 app.get("/api/stocks", async (req, res) => {
-  try {
-    const { data, error } = await supabase.from("stocks").select("*");
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
+  const { data, error } = await supabase.from("stocks").select("*");
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
 });
 
-// Add New Stock Entry
+// ✅ Add stock entry
 app.post("/api/stocks", async (req, res) => {
-  try {
-    const { name, quantity, price, threshold } = req.body;
-    const { data, error } = await supabase
-      .from("stocks")
-      .insert([{ name, quantity, price, threshold }]);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-    res.status(201).json(data);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
+  const { stock_name, quantity, date } = req.body;
+  if (!stock_name || !quantity || !date) {
+    return res.status(400).json({ error: "Missing required fields" });
   }
+
+  const { data, error } = await supabase.from("stocks").insert([{ stock_name, quantity, date }]);
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({ message: "Stock added successfully", data });
 });
 
-// Update Stock Quantity
+// ✅ Update stock quantity (Addition/Reduction)
 app.put("/api/stocks/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { quantity } = req.body;
+  const { id } = req.params;
+  const { quantity } = req.body;
 
-    const { data, error } = await supabase
-      .from("stocks")
-      .update({ quantity })
-      .match({ id });
+  if (!quantity) return res.status(400).json({ error: "Quantity is required" });
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
+  const { data, error } = await supabase
+    .from("stocks")
+    .update({ quantity })
+    .eq("id", id);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({ message: "Stock updated successfully", data });
 });
 
-// Delete a Stock Item
+// ✅ Delete a stock entry
 app.delete("/api/stocks/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
+  
+  const { error } = await supabase.from("stocks").delete().eq("id", id);
+  if (error) return res.status(500).json({ error: error.message });
 
-    const { data, error } = await supabase
-      .from("stocks")
-      .delete()
-      .match({ id });
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-    res.json({ message: "Stock item deleted successfully", data });
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
+  res.json({ message: "Stock deleted successfully" });
 });
 
-// Start the Server
-app.listen(port, () => {
-  console.log(`🚀 Server is running on port ${port}`);
+// ✅ Start Server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
