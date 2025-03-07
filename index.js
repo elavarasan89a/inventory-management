@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { db } from "./firebase.js";
+import db from "./firebase.js";  // ✅ Correct import
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
 
 const app = express();
